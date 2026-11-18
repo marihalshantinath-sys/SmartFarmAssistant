@@ -1,20 +1,19 @@
 import sqlite3
-from datetime import date, datetime
+from datetime import date
 import pandas as pd
 import streamlit as st
 
 st.set_page_config(
-    page_title="SmartFarmAssistant V2.0",
+    page_title="SmartFarmAssistant V3.0",
     page_icon="🌱",
     layout="wide",
     initial_sidebar_state="collapsed",
 )
 
-# --- CUSTOM DARK GRID & EMERALD THEME (MATCHING TEMPLATE) ---
+# --- CUSTOM DARK GRID & EMERALD THEME ---
 st.markdown(
     """
 <style>
-    /* Main dark navy background with subtle blueprint grid */
     .stApp {
         background-color: #111822;
         background-image: 
@@ -23,8 +22,6 @@ st.markdown(
         background-size: 32px 32px;
         color: #F3F4F6;
     }
-
-    /* Hero Banner Styling */
     .hero-card {
         background: linear-gradient(135deg, rgba(20, 31, 46, 0.95), rgba(15, 23, 34, 0.98));
         border: 1px solid rgba(52, 211, 153, 0.35);
@@ -45,12 +42,8 @@ st.markdown(
         margin: 0;
         line-height: 1.15;
     }
-    .hero-green {
-        color: #4ADE80;
-    }
-    .hero-white {
-        color: #FFFFFF;
-    }
+    .hero-green { color: #4ADE80; }
+    .hero-white { color: #FFFFFF; }
     .version-badge {
         background-color: #22C55E;
         color: #09131D;
@@ -66,10 +59,8 @@ st.markdown(
         font-size: 0.95rem;
         margin-top: 6px;
     }
-
-    /* Tabs Styling */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
+        gap: 6px;
         background-color: #16202E;
         padding: 8px;
         border-radius: 12px;
@@ -80,15 +71,13 @@ st.markdown(
         border-radius: 8px;
         color: #CBD5E1;
         font-weight: 600;
-        padding: 8px 14px;
+        padding: 8px 12px;
     }
     .stTabs [aria-selected="true"] {
         background: linear-gradient(90deg, #22C55E, #10B981) !important;
         color: #08121C !important;
         font-weight: 700 !important;
     }
-
-    /* Metric & Container Cards */
     [data-testid="stMetric"] {
         background-color: #162231;
         border: 1px solid rgba(74, 222, 128, 0.3);
@@ -106,8 +95,6 @@ st.markdown(
         border-radius: 14px;
         padding: 20px;
     }
-
-    /* Primary Emerald Buttons */
     .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
         background: linear-gradient(90deg, #22C55E, #16A34A) !important;
         color: #07111A !important;
@@ -121,11 +108,7 @@ st.markdown(
         background: linear-gradient(90deg, #4ADE80, #22C55E) !important;
         transform: translateY(-1px);
     }
-
-    /* Headings */
-    h1, h2, h3, h4 {
-        color: #E2E8F0 !important;
-    }
+    h1, h2, h3, h4 { color: #E2E8F0 !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -152,6 +135,15 @@ def init_db():
     c.execute("""CREATE TABLE IF NOT EXISTS farm_tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             due_date TEXT, plot_name TEXT, task_title TEXT, assigned_to TEXT, priority TEXT, status TEXT
+        )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS machinery_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            log_date TEXT, machine_name TEXT, operation_type TEXT,
+            hours_run REAL, fuel_liters REAL, fuel_cost REAL, next_service_hrs REAL
+        )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS farm_expenses (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exp_date TEXT, crop_name TEXT, category TEXT, amount REAL, notes TEXT
         )""")
     conn.commit()
     conn.close()
@@ -307,26 +299,28 @@ st.markdown(
         <div class="hero-title">
             <span class="hero-green">SMART FARM</span><br>
             <span class="hero-white">ASSISTANT</span>
-            <span class="version-badge">V2.0</span>
+            <span class="version-badge">V3.0</span>
         </div>
         <div class="hero-sub">
-            ⚙️ Precision Soil & Crop Advisor &nbsp;•&nbsp; 🧪 High-Yield Dosing Engine &nbsp;•&nbsp; 👷 Workforce & Wage Control
+            ⚙️ Precision Agronomy &nbsp;•&nbsp; 🧪 Commercial Dosing &nbsp;•&nbsp; 🚜 Machinery Telemetry &nbsp;•&nbsp; 💰 Mandi Profit ROI
         </div>
     </div>
     <div style="text-align:right; color:#4ADE80; font-weight:700; font-size:0.9rem;">
-        ● SYSTEM ONLINE &nbsp;|&nbsp; SQLITE SYNCED
+        ● SYSTEM ONLINE &nbsp;|&nbsp; 8 MODULES ACTIVE
     </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
     "🌱 Soil & Sowing",
     "🧪 Fertilizer & Spray",
     "💧 Irrigation Log",
     "👷 Workers & Wages",
     "📋 Farm Tasks",
+    "💰 Profit & Mandi ROI",
+    "🚜 Machinery Log",
     "📊 Reports & Export",
 ])
 
@@ -407,14 +401,14 @@ with tab2:
         )
 
     req_n, req_p, req_k = CROP_GUIDES[calc_crop]["npk_per_acre"]
-    total_n = req_n * area_acres
-    total_p = req_p * area_acres
-    total_k = req_k * area_acres
+    total_n, total_p, total_k = (
+        req_n * area_acres,
+        req_p * area_acres,
+        req_k * area_acres,
+    )
 
-    # Convert NPK to standard commercial bags (DAP 18-46-0, Urea 46-0-0, MOP 0-0-60)
     dap_kg = total_p / 0.46
-    n_from_dap = dap_kg * 0.18
-    remaining_n = max(0.0, total_n - n_from_dap)
+    remaining_n = max(0.0, total_n - (dap_kg * 0.18))
     urea_kg = remaining_n / 0.46
     mop_kg = total_k / 0.60
 
@@ -457,7 +451,7 @@ with tab3:
             crop_t = st.selectbox("Crop", list(CROP_GUIDES.keys()))
             moisture_pct = st.slider("Current Soil Moisture (%)", 5, 100, 38)
 
-        base_water = 12000  # liters per acre baseline
+        base_water = 12000
         factor = ENV_CONDITIONS[env_t]["irrigation_factor"]
         rec_liters = (
             round(base_water * factor * (1 - moisture_pct / 120), 0)
@@ -496,7 +490,6 @@ with tab3:
 with tab4:
     st.subheader("Farm Workforce & Wage Management")
     wcol1, wcol2 = st.columns([1, 1.3])
-
     with wcol1:
         st.markdown("#### ➕ Register New Worker")
         with st.form("add_worker_form", clear_on_submit=True):
@@ -632,9 +625,174 @@ with tab5:
     if not tasks_df.empty:
         st.dataframe(tasks_df, use_container_width=True)
 
-# === TAB 6: REPORTS & CSV EXPORT ===
+# === TAB 6: PROFIT / LOSS & MANDI ROI CALCULATOR ===
 with tab6:
-    st.subheader("Download Farm Reports (CSV)")
+    st.subheader("💰 Farm Expense, APMC Mandi Revenue & Net Profit ROI")
+
+    with st.form("expense_form", clear_on_submit=True):
+        ec1, ec2, ec3 = st.columns(3)
+        with ec1:
+            exp_date = st.date_input("Expense Date", date.today())
+            exp_crop = st.selectbox(
+                "Crop", list(CROP_GUIDES.keys()), key="exp_crop"
+            )
+        with ec2:
+            exp_cat = st.selectbox(
+                "Expense Category",
+                [
+                    "Seeds / Planting Material",
+                    "Fertilizers (Urea/DAP/MOP)",
+                    "Pesticides / Foliar Sprays",
+                    "Irrigation / Electricity",
+                    "Transport & Mandi Commission",
+                ],
+            )
+            exp_amt = st.number_input(
+                "Amount Spent (₹)", min_value=50, max_value=1000000, value=2500
+            )
+        with ec3:
+            exp_note = st.text_input(
+                "Bill / Vendor Note", placeholder="e.g., 4 Bags DAP + Micronutrients"
+            )
+        if st.form_submit_button("💾 Log Farm Input Expense"):
+            conn = sqlite3.connect("smart_farm.db")
+            conn.execute(
+                "INSERT INTO farm_expenses (exp_date, crop_name, category, amount, notes) VALUES (?, ?, ?, ?, ?)",
+                (str(exp_date), exp_crop, exp_cat, exp_amt, exp_note),
+            )
+            conn.commit()
+            conn.close()
+            st.success("✅ Input expense recorded!")
+
+    conn = sqlite3.connect("smart_farm.db")
+    total_wage_cost = float(
+        pd.read_sql_query(
+            "SELECT COALESCE(SUM(wage_earned), 0) AS w FROM attendance", conn
+        )["w"][0]
+    )
+    total_fuel_cost = float(
+        pd.read_sql_query(
+            "SELECT COALESCE(SUM(fuel_cost), 0) AS f FROM machinery_logs", conn
+        )["f"][0]
+    )
+    total_input_cost = float(
+        pd.read_sql_query(
+            "SELECT COALESCE(SUM(amount), 0) AS a FROM farm_expenses", conn
+        )["a"][0]
+    )
+    conn.close()
+
+    grand_total_cost = total_wage_cost + total_fuel_cost + total_input_cost
+
+    st.markdown("#### 📈 Harvest Sale & Mandi Profit Simulator")
+    rc1, rc2, rc3 = st.columns(3)
+    with rc1:
+        harvest_quintals = st.number_input(
+            "Expected / Harvested Yield (Quintals)",
+            min_value=1.0,
+            max_value=5000.0,
+            value=45.0,
+            step=1.0,
+        )
+    with rc2:
+        mandi_rate = st.number_input(
+            "APMC Mandi Selling Price (₹ / Quintal)",
+            min_value=100,
+            max_value=50000,
+            value=2400,
+            step=50,
+        )
+    with rc3:
+        gross_revenue = harvest_quintals * mandi_rate
+        net_profit = gross_revenue - grand_total_cost
+        roi_pct = (
+            (net_profit / grand_total_cost * 100) if grand_total_cost > 0 else 100.0
+        )
+
+    pm1, pm2, pm3, pm4 = st.columns(4)
+    pm1.metric(
+        "Total Farm Cost",
+        f"₹ {grand_total_cost:,.0f}",
+        f"Wages: ₹{total_wage_cost:,.0f}",
+    )
+    pm2.metric("Gross Mandi Revenue", f"₹ {gross_revenue:,.0f}")
+    pm3.metric(
+        "Net Farm Profit",
+        f"₹ {net_profit:,.0f}",
+        delta="Profitable" if net_profit >= 0 else "Loss",
+    )
+    pm4.metric("Return on Investment", f"{roi_pct:.1f}%")
+
+# === TAB 7: MACHINERY & FUEL TELEMETRY ===
+with tab7:
+    st.subheader("🚜 Farm Machinery, Fuel & Service Maintenance Log")
+    with st.form("machinery_form", clear_on_submit=True):
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1:
+            m_date = st.date_input("Operation Date", date.today())
+            m_name = st.selectbox(
+                "Equipment / Machine",
+                [
+                    "Tractor (45 HP)",
+                    "Mini Power Tiller / Inter-Cultivator",
+                    "Battery Knapsack Sprayer",
+                    "Borewell / Drip Pump Motor",
+                    "Rotavator / Harvester",
+                ],
+            )
+        with mc2:
+            m_op = st.text_input(
+                "Field Operation", placeholder="e.g., Inter-row weeding & tilling"
+            )
+            m_hrs = st.number_input(
+                "Engine / Motor Run Hours",
+                min_value=0.5,
+                max_value=24.0,
+                value=3.5,
+                step=0.5,
+            )
+        with mc3:
+            m_fuel = st.number_input(
+                "Diesel / Fuel Used (Liters)",
+                min_value=0.0,
+                max_value=200.0,
+                value=8.0,
+                step=0.5,
+            )
+            m_cost = st.number_input(
+                "Fuel / Power Cost (₹)", min_value=0, max_value=20000, value=760
+            )
+
+        if st.form_submit_button("💾 Log Machinery Telemetry"):
+            conn = sqlite3.connect("smart_farm.db")
+            conn.execute(
+                "INSERT INTO machinery_logs (log_date, machine_name, operation_type, hours_run, fuel_liters, fuel_cost, next_service_hrs) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(m_date), m_name, m_op, m_hrs, m_fuel, m_cost, 250.0),
+            )
+            conn.commit()
+            conn.close()
+            st.success("✅ Machinery hours & fuel telemetry saved!")
+
+    conn = sqlite3.connect("smart_farm.db")
+    mach_df = pd.read_sql_query(
+        "SELECT * FROM machinery_logs ORDER BY id DESC", conn
+    )
+    conn.close()
+    if not mach_df.empty:
+        total_hrs = mach_df["hours_run"].sum()
+        total_diesel = mach_df["fuel_liters"].sum()
+        mm1, mm2, mm3 = st.columns(3)
+        mm1.metric("Total Machine Run Hours", f"{total_hrs:.1f} hrs")
+        mm2.metric("Total Diesel Consumed", f"{total_diesel:.1f} L")
+        mm3.metric(
+            "Hours Until 250h Oil/Blade Service",
+            f"{max(0.0, 250.0 - (total_hrs % 250)):.1f} hrs",
+        )
+        st.dataframe(mach_df, use_container_width=True)
+
+# === TAB 8: REPORTS & CSV EXPORT ===
+with tab8:
+    st.subheader("📊 Download Complete Farm Reports (CSV)")
     conn = sqlite3.connect("smart_farm.db")
     adv_df = pd.read_sql_query(
         "SELECT * FROM advisory_logs ORDER BY id DESC", conn
@@ -642,30 +800,42 @@ with tab6:
     att_df = pd.read_sql_query(
         "SELECT * FROM attendance ORDER BY id DESC", conn
     )
+    exp_df = pd.read_sql_query(
+        "SELECT * FROM farm_expenses ORDER BY id DESC", conn
+    )
     conn.close()
 
-    st.markdown("#### 1. Soil, Irrigation & Crop Advisory Logs")
-    if not adv_df.empty:
-        st.dataframe(adv_df, use_container_width=True)
-        st.download_button(
-            "📥 Download Advisory Report (CSV)",
-            adv_df.to_csv(index=False).encode("utf-8"),
-            "advisory_report.csv",
-            "text/csv",
-        )
-    else:
-        st.info("No advisory logs saved yet.")
-
-    st.markdown("#### 2. Worker Attendance & Wage Expenses")
-    if not att_df.empty:
-        total_wages = att_df["wage_earned"].sum()
-        st.metric("Total Recorded Wage Expense", f"₹ {total_wages:,.0f}")
-        st.dataframe(att_df, use_container_width=True)
-        st.download_button(
-            "📥 Download Wage & Attendance Report (CSV)",
-            att_df.to_csv(index=False).encode("utf-8"),
-            "wage_report.csv",
-            "text/csv",
-        )
-    else:
-        st.info("No attendance records saved yet.")
+    c_rep1, c_rep2, c_rep3 = st.columns(3)
+    with c_rep1:
+        st.markdown("#### 1. Irrigation Logs")
+        if not adv_df.empty:
+            st.download_button(
+                "📥 Irrigation CSV",
+                adv_df.to_csv(index=False).encode("utf-8"),
+                "advisory_report.csv",
+                "text/csv",
+            )
+        else:
+            st.info("No irrigation logs yet.")
+    with c_rep2:
+        st.markdown("#### 2. Worker Wages")
+        if not att_df.empty:
+            st.download_button(
+                "📥 Wages CSV",
+                att_df.to_csv(index=False).encode("utf-8"),
+                "wage_report.csv",
+                "text/csv",
+            )
+        else:
+            st.info("No wage records yet.")
+    with c_rep3:
+        st.markdown("#### 3. Input Expenses")
+        if not exp_df.empty:
+            st.download_button(
+                "📥 Expenses CSV",
+                exp_df.to_csv(index=False).encode("utf-8"),
+                "expenses_report.csv",
+                "text/csv",
+            )
+        else:
+            st.info("No expenses logged yet.")
