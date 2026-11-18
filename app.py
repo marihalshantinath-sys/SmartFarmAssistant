@@ -115,10 +115,28 @@ st.markdown(
 )
 
 
-# --- DATABASE SETUP ---
+# --- DATABASE SETUP WITH AUTO-SCHEMA MIGRATION ---
 def init_db():
     conn = sqlite3.connect("smart_farm.db")
     c = conn.cursor()
+
+    # Check if advisory_logs has all required columns; rebuild if outdated
+    c.execute("PRAGMA table_info(advisory_logs)")
+    existing_cols = [row[1] for row in c.fetchall()]
+    required_cols = [
+        "id",
+        "log_date",
+        "plot_name",
+        "soil_type",
+        "environment",
+        "crop_selected",
+        "soil_moisture",
+        "irrigation_liters",
+        "notes",
+    ]
+    if existing_cols and existing_cols != required_cols:
+        c.execute("DROP TABLE IF EXISTS advisory_logs")
+
     c.execute("""CREATE TABLE IF NOT EXISTS advisory_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             log_date TEXT, plot_name TEXT, soil_type TEXT, environment TEXT,
