@@ -13,119 +13,38 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- MOBILE-RESPONSIVE HIGH-CONTRAST DARK UI ---
-CSS_STYLE = """
-<style>
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
-        background-color: #0D141F !important;
-        color: #FFFFFF !important;
-        overflow-x: hidden !important;
-    }
-    .block-container {
-        padding: 1rem 0.8rem 2rem 0.8rem !important;
-        max-width: 100% !important;
-    }
-    p, span, label, div, li, .stMarkdown, [data-testid="stWidgetLabel"] p {
-        color: #F1F5F9 !important;
-    }
-    h1, h2, h3, h4, h5 {
-        color: #4ADE80 !important;
-        font-weight: 800 !important;
-    }
-    input, textarea, [data-baseweb="select"] > div, [data-baseweb="input"] > div {
-        background-color: #1A2636 !important;
-        color: #FFFFFF !important;
-        border: 1px solid #34D399 !important;
-        border-radius: 10px !important;
-        font-size: 16px !important;
-        min-height: 44px !important;
-    }
-    [data-baseweb="select"] span { color: #FFFFFF !important; }
-    ul[role="listbox"] { background-color: #1A2636 !important; color: #FFFFFF !important; }
-    ul[role="listbox"] li:hover { background-color: #22C55E !important; color: #09131D !important; }
-    .hero-card {
-        background: linear-gradient(135deg, #132032, #0B121C);
-        border: 1.5px solid #22C55E;
-        border-radius: 14px;
-        padding: 16px 18px;
-        margin-bottom: 14px;
-    }
-    .hero-title { font-size: 1.65rem; font-weight: 900; margin: 0; line-height: 1.2; }
-    .hero-green { color: #4ADE80 !important; }
-    .hero-white { color: #FFFFFF !important; }
-    .version-badge {
-        background-color: #22C55E;
-        color: #07111A !important;
-        font-size: 0.85rem;
-        font-weight: 900;
-        padding: 3px 8px;
-        border-radius: 8px;
-        margin-left: 6px;
-    }
-    .hero-sub { color: #CBD5E1 !important; font-size: 0.88rem; margin-top: 6px; }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 6px;
-        background-color: #152132;
-        padding: 6px;
-        border-radius: 12px;
-        border: 1px solid rgba(74, 222, 128, 0.35);
-        flex-wrap: wrap !important;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #1E2D42;
-        border-radius: 8px;
-        color: #FFFFFF !important;
-        font-weight: 700;
-        padding: 8px 10px;
-        font-size: 0.85rem !important;
-        flex-grow: 1;
-        justify-content: center;
-    }
-    .stTabs [aria-selected="true"] {
-        background: #22C55E !important;
-        color: #061019 !important;
-        font-weight: 800 !important;
-    }
-    .stTabs [aria-selected="true"] p { color: #061019 !important; }
-    [data-testid="stMetric"] {
-        background-color: #152233 !important;
-        border: 1px solid #22C55E !important;
-        border-radius: 12px;
-        padding: 12px 14px;
-    }
-    [data-testid="stMetricLabel"] p { color: #94A3B8 !important; font-size: 0.85rem !important; }
-    [data-testid="stMetricValue"] div { color: #4ADE80 !important; font-size: 1.4rem !important; font-weight: 900 !important; }
-    [data-testid="stForm"], [data-testid="stExpander"] {
-        background-color: #131E2E !important;
-        border: 1px solid rgba(52, 211, 153, 0.35) !important;
-        border-radius: 12px;
-        padding: 14px;
-    }
-    .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
-        background: #22C55E !important;
-        color: #061019 !important;
-        font-weight: 800 !important;
-        border: none !important;
-        border-radius: 10px !important;
-        min-height: 46px !important;
-        width: 100% !important;
-        font-size: 1rem !important;
-    }
-    .stButton > button p, .stFormSubmitButton > button p, .stDownloadButton > button p {
-        color: #061019 !important;
-        font-weight: 800 !important;
-    }
-    @media (max-width: 768px) {
-        .hero-title { font-size: 1.4rem !important; }
-        .stTabs [data-baseweb="tab"] { width: 48% !important; }
-        [data-testid="column"] { width: 100% !important; flex: 1 1 100% !important; min-width: 100% !important; }
-    }
-</style>
-"""
+# --- MOBILE-RESPONSIVE HIGH-CONTRAST UI (SINGLE-LINE SAFE) ---
+CSS_STYLE = (
+    "<style>"
+    ".stApp, [data-testid='stAppViewContainer'], [data-testid='stHeader'] { background-color: #0D141F !important; color: #FFFFFF !important; overflow-x: hidden !important; }"
+    ".block-container { padding: 1rem 0.8rem 2rem 0.8rem !important; max-width: 100% !important; }"
+    "p, span, label, div, li, .stMarkdown, [data-testid='stWidgetLabel'] p { color: #F1F5F9 !important; }"
+    "h1, h2, h3, h4, h5 { color: #4ADE80 !important; font-weight: 800 !important; }"
+    "input, textarea, [data-baseweb='select'] > div, [data-baseweb='input'] > div { background-color: #1A2636 !important; color: #FFFFFF !important; border: 1px solid #34D399 !important; border-radius: 10px !important; font-size: 16px !important; min-height: 44px !important; }"
+    "[data-baseweb='select'] span { color: #FFFFFF !important; }"
+    "ul[role='listbox'] { background-color: #1A2636 !important; color: #FFFFFF !important; }"
+    ".hero-card { background: linear-gradient(135deg, #132032, #0B121C); border: 1.5px solid #22C55E; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; }"
+    ".hero-title { font-size: 1.6rem; font-weight: 900; margin: 0; line-height: 1.2; }"
+    ".hero-green { color: #4ADE80 !important; }"
+    ".hero-white { color: #FFFFFF !important; }"
+    ".version-badge { background-color: #22C55E; color: #07111A !important; font-size: 0.85rem; font-weight: 900; padding: 3px 8px; border-radius: 8px; margin-left: 6px; }"
+    ".hero-sub { color: #CBD5E1 !important; font-size: 0.88rem; margin-top: 6px; }"
+    ".stTabs [data-baseweb='tab-list'] { gap: 6px; background-color: #152132; padding: 6px; border-radius: 12px; border: 1px solid rgba(74, 222, 128, 0.35); flex-wrap: wrap !important; }"
+    ".stTabs [data-baseweb='tab'] { background-color: #1E2D42; border-radius: 8px; color: #FFFFFF !important; font-weight: 700; padding: 8px 10px; font-size: 0.85rem !important; flex-grow: 1; justify-content: center; }"
+    ".stTabs [aria-selected='true'] { background: #22C55E !important; color: #061019 !important; font-weight: 800 !important; }"
+    ".stTabs [aria-selected='true'] p { color: #061019 !important; }"
+    "[data-testid='stMetric'] { background-color: #152233 !important; border: 1px solid #22C55E !important; border-radius: 12px; padding: 12px 14px; }"
+    "[data-testid='stMetricLabel'] p { color: #94A3B8 !important; font-size: 0.85rem !important; }"
+    "[data-testid='stMetricValue'] div { color: #4ADE80 !important; font-size: 1.4rem !important; font-weight: 900 !important; }"
+    "[data-testid='stForm'], [data-testid='stExpander'] { background-color: #131E2E !important; border: 1px solid rgba(52, 211, 153, 0.35) !important; border-radius: 12px; padding: 14px; }"
+    ".stButton > button, .stFormSubmitButton > button, .stDownloadButton > button { background: #22C55E !important; color: #061019 !important; font-weight: 800 !important; border: none !important; border-radius: 10px !important; min-height: 46px !important; width: 100% !important; font-size: 1rem !important; }"
+    ".stButton > button p, .stFormSubmitButton > button p, .stDownloadButton > button p { color: #061019 !important; font-weight: 800 !important; }"
+    "@media (max-width: 768px) { .hero-title { font-size: 1.4rem !important; } .stTabs [data-baseweb='tab'] { width: 48% !important; } [data-testid='column'] { width: 100% !important; flex: 1 1 100% !important; min-width: 100% !important; } }"
+    "</style>"
+)
 st.markdown(CSS_STYLE, unsafe_allow_html=True)
 
 
-# --- DATABASE SETUP ---
 def init_db():
     conn = sqlite3.connect("smart_farm.db")
     c = conn.cursor()
@@ -165,7 +84,6 @@ def init_db():
 
 init_db()
 
-# --- DISTRICTS & LIVE WEATHER ---
 DISTRICTS = {
     "Belagavi, Karnataka": (15.8497, 74.4977),
     "Dharwad / Hubballi, Karnataka": (15.4589, 75.0078),
@@ -208,7 +126,6 @@ def classify_environment(temp_c: float, rain_4h_mm: float, rain_prob_4h: float):
     return "Warm & Humid (Pre-Monsoon / Moderate)"
 
 
-# --- FERTILIZER & CHEMICAL KNOWLEDGE BASE ---
 ALL_FERTILIZERS = [
     {"Name": "Urea (46-0-0)", "Type": "Granular N", "Bag": "45 kg", "Role": "Fast leaf & stem growth", "Acre Dose": "50–110 kg/acre"},
     {"Name": "DAP (18-46-0)", "Type": "Granular P+N", "Bag": "50 kg", "Role": "Root growth & flowering", "Acre Dose": "45–85 kg/acre"},
@@ -359,7 +276,6 @@ CROP_GUIDES = {
     "Banana / Arecanut": {"spacing": "6x6 ft / 9x9 ft", "seed_rate": "1,200 / 540 plants/acre", "npk_per_acre": (120, 40, 140), "yield_booster": "13:00:45 (Potassium Nitrate) + Micronutrients."},
 }
 
-# --- HERO HEADER BANNER ---
 HERO_HTML = (
     '<div class="hero-card">'
     '<div class="hero-title"><span class="hero-green">SMART FARM</span> '
@@ -370,7 +286,6 @@ HERO_HTML = (
 )
 st.markdown(HERO_HTML, unsafe_allow_html=True)
 
-# --- LIVE WEATHER & SPRAY SAFETY ---
 st.markdown("### 🌦️ Live Weather & Spray Safety")
 w_sel1, w_sel2, w_sel3 = st.columns([1.5, 1, 1])
 with w_sel1:
@@ -414,7 +329,6 @@ default_env_idx = env_keys.index(auto_env) if auto_env in env_keys else 1
 
 st.markdown("---")
 
-# --- 6 MOBILE-WRAPPING FUNCTION TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📷 1. Photo Scan",
     "🧪 2. Chemicals",
@@ -424,7 +338,6 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "💰 6. Profit & CSV",
 ])
 
-# === TAB 1: CAMERA PLANT PHOTO SCANNER ===
 with tab1:
     st.subheader("📷 Plant Photo Scanner & Chemical Advisor")
     cam_col1, cam_col2 = st.columns(2)
@@ -470,7 +383,6 @@ with tab1:
         m_rec = ALL_CHEMICALS[manual_issue]
         st.success(f"**Best Chemical:** {m_rec['best_chemical']} — **Dose:** {m_rec['dose_per_liter']} {m_rec['unit']}/L ({15 * m_rec['dose_per_liter']:.1f} {m_rec['unit']} per 15L pump)")
 
-# === TAB 2: ALL FERTILIZERS & CHEMICAL CALCULATOR ===
 with tab2:
     st.subheader("🧪 Fertilizer (Urea, DAP, MOP, NPK) & Chemical Calculator")
     fcol1, fcol2 = st.columns(2)
@@ -506,7 +418,6 @@ with tab2:
     with st.expander("📋 Full Directory of Fertilizers & Micronutrients", expanded=False):
         st.dataframe(pd.DataFrame(ALL_FERTILIZERS), use_container_width=True, hide_index=True)
 
-# === TAB 3: SOIL, WEATHER & CROP SOWING ===
 with tab3:
     st.subheader("🌱 Soil & Weather Crop Sowing Guide")
     col1, col2, col3 = st.columns(3)
@@ -530,7 +441,6 @@ with tab3:
     m3.metric("Water Factor", f"{int(env_info['irrigation_factor']*100)}%")
     st.success(f"**🚀 Growth Booster:** {crop_info['yield_booster']}")
 
-# === TAB 4: IRRIGATION & FIELD LOG ===
 with tab4:
     st.subheader("💧 Daily Moisture & Irrigation Log")
     with st.form("irrigation_form", clear_on_submit=True):
@@ -557,7 +467,6 @@ with tab4:
             conn.close()
             st.success("✅ Saved!")
 
-# === TAB 5: WORKERS & WAGES ===
 with tab5:
     st.subheader("👷 Worker Attendance & Wages")
     with st.form("add_worker_form", clear_on_submit=True):
@@ -596,7 +505,6 @@ with tab5:
                 conn.close()
                 st.success(f"Saved! Wage: ₹{earned:.0f}")
 
-# === TAB 6: PROFIT, MANDI ROI & CSV REPORTS ===
 with tab6:
     st.subheader("💰 Mandi Profit & CSV Reports")
     with st.form("expense_form", clear_on_submit=True):
