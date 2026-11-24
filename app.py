@@ -1,6 +1,7 @@
 import sqlite3
 from datetime import date
 import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(
@@ -10,105 +11,147 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- CUSTOM DARK GRID & EMERALD THEME ---
+# --- HIGH-CONTRAST DARK BLUEPRINT & EMERALD UI (100% VISIBLE TEXT) ---
 st.markdown(
     """
 <style>
-    .stApp {
-        background-color: #111822;
+    /* Force dark background & high-contrast white text globally */
+    .stApp, [data-testid="stAppViewContainer"], [data-testid="stHeader"] {
+        background-color: #0D141F !important;
         background-image: 
-            linear-gradient(rgba(52, 211, 153, 0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(52, 211, 153, 0.06) 1px, transparent 1px);
-        background-size: 32px 32px;
-        color: #F3F4F6;
+            linear-gradient(rgba(52, 211, 153, 0.05) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(52, 211, 153, 0.05) 1px, transparent 1px);
+        background-size: 30px 30px;
+        color: #FFFFFF !important;
     }
+
+    /* Make all labels, paragraphs, markdown, and widget titles bright white */
+    p, span, label, div, li, .stMarkdown, [data-testid="stWidgetLabel"] p {
+        color: #F1F5F9 !important;
+    }
+    h1, h2, h3, h4, h5 {
+        color: #4ADE80 !important;
+        font-weight: 800 !important;
+    }
+
+    /* Input boxes, Selectboxes, Number inputs - dark card with crisp white text */
+    input, textarea, [data-baseweb="select"] > div, [data-baseweb="input"] > div {
+        background-color: #1A2636 !important;
+        color: #FFFFFF !important;
+        border: 1px solid #34D399 !important;
+        border-radius: 8px !important;
+    }
+    [data-baseweb="select"] span {
+        color: #FFFFFF !important;
+    }
+    ul[role="listbox"] {
+        background-color: #1A2636 !important;
+        color: #FFFFFF !important;
+    }
+    ul[role="listbox"] li:hover {
+        background-color: #22C55E !important;
+        color: #09131D !important;
+    }
+
+    /* Hero Banner */
     .hero-card {
-        background: linear-gradient(135deg, rgba(20, 31, 46, 0.95), rgba(15, 23, 34, 0.98));
-        border: 1px solid rgba(52, 211, 153, 0.35);
+        background: linear-gradient(135deg, #132032, #0B121C);
+        border: 1.5px solid #22C55E;
         border-radius: 16px;
-        padding: 22px 28px;
-        margin-bottom: 20px;
-        box-shadow: 0 8px 30px rgba(16, 185, 129, 0.12);
+        padding: 20px 26px;
+        margin-bottom: 18px;
+        box-shadow: 0 6px 24px rgba(34, 197, 94, 0.18);
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
-        gap: 16px;
+        gap: 14px;
     }
     .hero-title {
-        font-size: 2.1rem;
-        font-weight: 800;
-        letter-spacing: 0.5px;
+        font-size: 2.0rem;
+        font-weight: 900;
         margin: 0;
         line-height: 1.15;
     }
-    .hero-green { color: #4ADE80; }
-    .hero-white { color: #FFFFFF; }
+    .hero-green { color: #4ADE80 !important; }
+    .hero-white { color: #FFFFFF !important; }
     .version-badge {
         background-color: #22C55E;
-        color: #09131D;
-        font-size: 0.95rem;
-        font-weight: 800;
+        color: #07111A !important;
+        font-size: 0.9rem;
+        font-weight: 900;
         padding: 4px 10px;
         border-radius: 8px;
-        vertical-align: middle;
         margin-left: 8px;
     }
     .hero-sub {
-        color: #9CA3AF;
+        color: #CBD5E1 !important;
         font-size: 0.95rem;
         margin-top: 6px;
     }
+
+    /* Navigation Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 6px;
-        background-color: #16202E;
+        gap: 8px;
+        background-color: #152132;
         padding: 8px;
         border-radius: 12px;
-        border: 1px solid rgba(74, 222, 128, 0.2);
+        border: 1px solid rgba(74, 222, 128, 0.35);
+        flex-wrap: wrap;
     }
     .stTabs [data-baseweb="tab"] {
-        background-color: transparent;
+        background-color: #1E2D42;
         border-radius: 8px;
-        color: #CBD5E1;
+        color: #FFFFFF !important;
         font-weight: 600;
-        padding: 8px 12px;
+        padding: 8px 14px;
     }
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(90deg, #22C55E, #10B981) !important;
-        color: #08121C !important;
-        font-weight: 700 !important;
+        background: #22C55E !important;
+        color: #061019 !important;
+        font-weight: 800 !important;
     }
+    .stTabs [aria-selected="true"] p {
+        color: #061019 !important;
+    }
+
+    /* Metric Cards */
     [data-testid="stMetric"] {
-        background-color: #162231;
-        border: 1px solid rgba(74, 222, 128, 0.3);
+        background-color: #152233 !important;
+        border: 1px solid #22C55E !important;
         border-radius: 12px;
         padding: 14px 18px;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
     }
-    [data-testid="stMetricValue"] {
+    [data-testid="stMetricLabel"] p {
+        color: #94A3B8 !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stMetricValue"] div {
         color: #4ADE80 !important;
-        font-weight: 800;
+        font-weight: 900 !important;
     }
-    [data-testid="stForm"] {
-        background-color: #15202E;
-        border: 1px solid rgba(52, 211, 153, 0.25);
+
+    /* Forms & Expanders */
+    [data-testid="stForm"], [data-testid="stExpander"] {
+        background-color: #131E2E !important;
+        border: 1px solid rgba(52, 211, 153, 0.35) !important;
         border-radius: 14px;
-        padding: 20px;
+        padding: 16px;
     }
+
+    /* Bright Emerald Action Buttons */
     .stButton > button, .stFormSubmitButton > button, .stDownloadButton > button {
-        background: linear-gradient(90deg, #22C55E, #16A34A) !important;
-        color: #07111A !important;
-        font-weight: 700 !important;
+        background: #22C55E !important;
+        color: #061019 !important;
+        font-weight: 800 !important;
         border: none !important;
         border-radius: 10px !important;
-        padding: 0.55rem 1.2rem !important;
-        box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+        padding: 0.6rem 1.3rem !important;
     }
-    .stButton > button:hover, .stFormSubmitButton > button:hover {
-        background: linear-gradient(90deg, #4ADE80, #22C55E) !important;
-        transform: translateY(-1px);
+    .stButton > button p, .stFormSubmitButton > button p, .stDownloadButton > button p {
+        color: #061019 !important;
+        font-weight: 800 !important;
     }
-    h1, h2, h3, h4 { color: #E2E8F0 !important; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -119,8 +162,6 @@ st.markdown(
 def init_db():
     conn = sqlite3.connect("smart_farm.db")
     c = conn.cursor()
-
-    # Check if advisory_logs has all required columns; rebuild if outdated
     c.execute("PRAGMA table_info(advisory_logs)")
     existing_cols = [row[1] for row in c.fetchall()]
     required_cols = [
@@ -168,6 +209,50 @@ def init_db():
 
 
 init_db()
+
+# --- DISTRICT COORDINATES & LIVE OPEN-METEO WEATHER API ---
+DISTRICTS = {
+    "Belagavi, Karnataka": (15.8497, 74.4977),
+    "Dharwad / Hubballi, Karnataka": (15.4589, 75.0078),
+    "Vijayapura, Karnataka": (16.8302, 75.7100),
+    "Bagalkot, Karnataka": (16.1691, 75.6615),
+    "Chikkamagaluru, Karnataka": (13.3161, 75.7720),
+    "Bengaluru Rural, Karnataka": (13.2846, 77.6078),
+    "Kolhapur, Maharashtra": (16.7050, 74.2433),
+    "Custom GPS Coordinates": (15.8497, 74.4977),
+}
+
+
+@st.cache_data(ttl=900)
+def fetch_live_weather(lat: float, lon: float):
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "current": "temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation",
+        "hourly": "precipitation_probability,precipitation,wind_speed_10m",
+        "daily": "temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max",
+        "forecast_days": 3,
+        "timezone": "auto",
+    }
+    try:
+        res = requests.get(url, params=params, timeout=6)
+        if res.status_code == 200:
+            return res.json()
+    except Exception:
+        return None
+    return None
+
+
+def classify_environment(temp_c: float, rain_4h_mm: float, rain_prob_4h: float):
+    if rain_4h_mm >= 1.0 or rain_prob_4h >= 60:
+        return "Monsoon / Heavy Rain (High Moisture)"
+    elif temp_c >= 34.0:
+        return "Hot & Dry (Summer / High Temp > 34°C)"
+    elif temp_c <= 22.0:
+        return "Cool & Dry (Rabi / Winter)"
+    return "Warm & Humid (Pre-Monsoon / Moderate)"
+
 
 # --- AGRONOMY KNOWLEDGE BASE ---
 SOIL_PROFILES = {
@@ -315,88 +400,164 @@ st.markdown(
 <div class="hero-card">
     <div>
         <div class="hero-title">
-            <span class="hero-green">SMART FARM</span><br>
+            <span class="hero-green">SMART FARM</span>
             <span class="hero-white">ASSISTANT</span>
             <span class="version-badge">V3.0</span>
         </div>
         <div class="hero-sub">
-            ⚙️ Precision Agronomy &nbsp;•&nbsp; 🧪 Commercial Dosing &nbsp;•&nbsp; 🚜 Machinery Telemetry &nbsp;•&nbsp; 💰 Mandi Profit ROI
+            🌦️ Live GPS Weather & Spray Guard &nbsp;•&nbsp; 🧪 Commercial Fertilizer Calculator &nbsp;•&nbsp; 👷 Worker Wages &nbsp;•&nbsp; 💰 Mandi ROI
         </div>
     </div>
-    <div style="text-align:right; color:#4ADE80; font-weight:700; font-size:0.9rem;">
-        ● SYSTEM ONLINE &nbsp;|&nbsp; 8 MODULES ACTIVE
+    <div style="color:#4ADE80; font-weight:800; font-size:0.95rem;">
+        ● SYSTEM ONLINE &nbsp;|&nbsp; ALL FUNCTIONS ACTIVE
     </div>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
-    "🌱 Soil & Sowing",
-    "🧪 Fertilizer & Spray",
-    "💧 Irrigation Log",
-    "👷 Workers & Wages",
-    "📋 Farm Tasks",
-    "💰 Profit & Mandi ROI",
-    "🚜 Machinery Log",
-    "📊 Reports & Export",
+# --- LIVE WEATHER & SPRAY SAFETY MONITOR ---
+st.markdown("### 🌦️ Live Farm Weather & 4-Hour Spray Safety Check")
+w_sel1, w_sel2, w_sel3 = st.columns([1.5, 1, 1])
+with w_sel1:
+    chosen_district = st.selectbox(
+        "Select Farm District / Region", list(DISTRICTS.keys()), index=0
+    )
+default_lat, default_lon = DISTRICTS[chosen_district]
+with w_sel2:
+    farm_lat = st.number_input(
+        "GPS Latitude",
+        value=default_lat,
+        format="%.4f",
+        disabled=(chosen_district != "Custom GPS Coordinates"),
+    )
+with w_sel3:
+    farm_lon = st.number_input(
+        "GPS Longitude",
+        value=default_lon,
+        format="%.4f",
+        disabled=(chosen_district != "Custom GPS Coordinates"),
+    )
+
+weather_data = fetch_live_weather(farm_lat, farm_lon)
+auto_env = "Warm & Humid (Pre-Monsoon / Moderate)"
+
+if weather_data and "current" in weather_data:
+    curr = weather_data["current"]
+    hourly = weather_data.get("hourly", {})
+    daily = weather_data.get("daily", {})
+
+    temp_now = curr.get("temperature_2m", 28.0)
+    hum_now = curr.get("relative_humidity_2m", 60)
+    wind_now = curr.get("wind_speed_10m", 8.0)
+
+    next_4h_probs = hourly.get("precipitation_probability", [0, 0, 0, 0])[:4]
+    next_4h_rain = hourly.get("precipitation", [0, 0, 0, 0])[:4]
+    max_prob_4h = max(next_4h_probs) if next_4h_probs else 0
+    total_rain_4h = sum(next_4h_rain) if next_4h_rain else 0.0
+
+    auto_env = classify_environment(temp_now, total_rain_4h, max_prob_4h)
+
+    wm1, wm2, wm3, wm4 = st.columns(4)
+    wm1.metric("🌡️ Temperature", f"{temp_now:.1f} °C")
+    wm2.metric("💧 Humidity", f"{hum_now}%")
+    wm3.metric("💨 Wind Speed", f"{wind_now:.1f} km/h")
+    wm4.metric("🌧️ 4-Hr Rain Risk", f"{max_prob_4h}%", f"{total_rain_4h:.1f} mm")
+
+    if max_prob_4h >= 50 or total_rain_4h >= 0.5:
+        st.error(
+            f"🚨 DO NOT SPRAY ALERT: {max_prob_4h}% chance of rain ({total_rain_4h:.1f} mm) in the next 4 hours. Delay spraying to avoid wash-off!"
+        )
+    elif wind_now > 15.0:
+        st.warning(
+            f"⚠️ HIGH WIND WARNING ({wind_now:.1f} km/h): Wind exceeds 15 km/h. High spray drift risk—wait for calm air."
+        )
+    else:
+        st.success(
+            f"✅ SAFE TO SPRAY: Low rain risk ({max_prob_4h}%) & calm wind ({wind_now:.1f} km/h). Active Weather Mode: {auto_env}"
+        )
+
+    if daily and "time" in daily:
+        with st.expander(
+            "📅 View 3-Day District Rainfall & Temperature Forecast",
+            expanded=False,
+        ):
+            forecast_df = pd.DataFrame({
+                "Date": daily["time"],
+                "Max Temp (°C)": daily["temperature_2m_max"],
+                "Min Temp (°C)": daily["temperature_2m_min"],
+                "Rain Sum (mm)": daily["precipitation_sum"],
+                "Rain Chance (%)": daily["precipitation_probability_max"],
+            })
+            st.dataframe(forecast_df, use_container_width=True, hide_index=True)
+
+env_keys = list(ENV_CONDITIONS.keys())
+default_env_idx = env_keys.index(auto_env) if auto_env in env_keys else 1
+
+st.markdown("---")
+st.markdown("### 🧭 Select Farm Function Module")
+
+# --- CLEAN 6-MODULE NAVIGATION (CLEAR & EASY TO READ ON MOBILE + LAPTOP) ---
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "🌱 1. Crop & Soil",
+    "🧪 2. Fertilizer & Spray",
+    "💧 3. Irrigation Log",
+    "👷 4. Workers & Wages",
+    "💰 5. Profit & Mandi",
+    "🚜 6. Machinery & Reports",
 ])
 
-# === TAB 1: SOIL, ENVIRONMENT & CROP SOWING ===
+# === TAB 1: SOIL, WEATHER & CROP SOWING ===
 with tab1:
-    st.subheader("Soil & Weather-Based Crop Sowing Recommendation")
+    st.subheader("Soil & Weather Crop Sowing Guide")
     col1, col2, col3 = st.columns(3)
     with col1:
         selected_soil = st.selectbox(
-            "1. Select Field Soil Type", list(SOIL_PROFILES.keys())
+            "Step 1: Select Soil Type", list(SOIL_PROFILES.keys())
         )
     with col2:
         selected_env = st.selectbox(
-            "2. Current Environment / Weather", list(ENV_CONDITIONS.keys())
+            "Step 2: Weather Condition", env_keys, index=default_env_idx
         )
     with col3:
         selected_crop = st.selectbox(
-            "3. Target Crop for Sowing Guide", list(CROP_GUIDES.keys())
+            "Step 3: Select Target Crop", list(CROP_GUIDES.keys())
         )
 
     soil_info = SOIL_PROFILES[selected_soil]
     env_info = ENV_CONDITIONS[selected_env]
     crop_info = CROP_GUIDES[selected_crop]
 
-    st.markdown("---")
     c1, c2 = st.columns(2)
     with c1:
         st.info(
-            f"**Best Suited Crops for {selected_soil}:**\n\n"
+            f"**Recommended Crops for {selected_soil}:**\n\n"
             + ", ".join(soil_info["best_crops"])
         )
         st.write(f"**💧 Moisture Retention:** {soil_info['water_holding']}")
-        st.write(f"**🧪 Soil Nutrition Note:** {soil_info['fertilizer_tip']}")
+        st.write(f"**🧪 Fertilizer Advice:** {soil_info['fertilizer_tip']}")
     with c2:
         st.warning(
-            f"**🌦️ Weather & Sowing Advisory ({selected_env}):**\n\n{env_info['sowing_advice']}"
+            f"**🌦️ Sowing Advice ({selected_env}):**\n\n{env_info['sowing_advice']}"
         )
-        st.write(f"**⚠️ Spray Timing Precaution:** {env_info['spray_warning']}")
+        st.write(f"**⚠️ Spray Precaution:** {env_info['spray_warning']}")
 
-    st.markdown(f"#### 🌾 Precision Sowing Blueprint: **{selected_crop}**")
     m1, m2, m3 = st.columns(3)
-    m1.metric("Recommended Spacing", crop_info["spacing"])
+    m1.metric("Row & Plant Spacing", crop_info["spacing"])
     m2.metric("Seed Rate / Acre", crop_info["seed_rate"])
-    m3.metric(
-        "Irrigation Multiplier", f"{int(env_info['irrigation_factor']*100)}%"
-    )
-    st.success(f"**🚀 High-Yield Growth Booster:** {crop_info['yield_booster']}")
+    m3.metric("Water Requirement", f"{int(env_info['irrigation_factor']*100)}%")
+    st.success(f"**🚀 High-Yield Booster:** {crop_info['yield_booster']}")
 
-# === TAB 2: HIGH-YIELD FERTILIZER & CHEMICAL DOSING CALCULATOR ===
+# === TAB 2: FERTILIZER & SPRAY CALCULATOR ===
 with tab2:
-    st.subheader("High-Yield Fertilizer & Spray Dosing Calculator")
+    st.subheader("Exact Fertilizer Bag & Spray Tank Calculator")
     fcol1, fcol2 = st.columns(2)
     with fcol1:
         calc_crop = st.selectbox(
             "Select Crop", list(CROP_GUIDES.keys()), key="fert_crop"
         )
         area_acres = st.number_input(
-            "Field Area (in Acres)",
+            "Field Area (Acres)",
             min_value=0.25,
             max_value=500.0,
             value=2.0,
@@ -404,14 +565,14 @@ with tab2:
         )
     with fcol2:
         tank_liters = st.number_input(
-            "Spray Pump / Tank Capacity (Liters)",
+            "Spray Tank Capacity (Liters)",
             min_value=10,
             max_value=2000,
             value=200,
             step=10,
         )
         chem_dose_per_liter = st.number_input(
-            "Chemical / Foliar Dose (ml or grams per Liter)",
+            "Chemical Dose (ml or g per Liter)",
             min_value=0.1,
             max_value=50.0,
             value=2.5,
@@ -426,66 +587,56 @@ with tab2:
     )
 
     dap_kg = total_p / 0.46
-    remaining_n = max(0.0, total_n - (dap_kg * 0.18))
-    urea_kg = remaining_n / 0.46
+    urea_kg = max(0.0, total_n - (dap_kg * 0.18)) / 0.46
     mop_kg = total_k / 0.60
 
-    st.markdown(
-        f"#### 📦 Exact Commercial Fertilizer Required for **{area_acres} Acres of {calc_crop}**"
-    )
     fc1, fc2, fc3 = st.columns(3)
     fc1.metric("Urea (46% N)", f"{urea_kg:.1f} kg", f"{urea_kg/45:.1f} Bags")
     fc2.metric("DAP (18-46-0)", f"{dap_kg:.1f} kg", f"{dap_kg/50:.1f} Bags")
     fc3.metric("MOP Potash (60%)", f"{mop_kg:.1f} kg", f"{mop_kg/50:.1f} Bags")
 
-    total_chem_needed = tank_liters * chem_dose_per_liter
-    st.markdown("#### 🧴 Spray Tank Mixing Calculation")
     sc1, sc2 = st.columns(2)
     sc1.metric(
-        "Total Chemical / Nutrient to Add",
-        f"{total_chem_needed:.0f} ml / g",
-        f"For {tank_liters} L tank",
+        f"Total Dose for {tank_liters}L Tank",
+        f"{tank_liters * chem_dose_per_liter:.0f} ml / g",
     )
     sc2.metric(
-        "15-Liter Knapsack Pump Dose",
+        "Dose per 15L Knapsack Pump",
         f"{15 * chem_dose_per_liter:.1f} ml / g",
-        "Per 15L battery sprayer",
     )
 
-# === TAB 3: IRRIGATION & FIELD LOGS ===
+# === TAB 3: IRRIGATION & FIELD LOG ===
 with tab3:
-    st.subheader("Daily Soil Moisture & Irrigation Log")
+    st.subheader("Daily Moisture & Irrigation Scheduler")
     with st.form("irrigation_form", clear_on_submit=True):
         ic1, ic2, ic3 = st.columns(3)
         with ic1:
             log_date = st.date_input("Date", date.today())
             plot_name = st.text_input(
-                "Plot / Field Name", placeholder="e.g., North Sugarcane Plot"
+                "Plot Name", placeholder="e.g., North Plot"
             )
         with ic2:
             soil_t = st.selectbox("Soil Type", list(SOIL_PROFILES.keys()))
-            env_t = st.selectbox("Weather", list(ENV_CONDITIONS.keys()))
+            env_t = st.selectbox("Weather", env_keys, index=default_env_idx)
         with ic3:
             crop_t = st.selectbox("Crop", list(CROP_GUIDES.keys()))
-            moisture_pct = st.slider("Current Soil Moisture (%)", 5, 100, 38)
+            moisture_pct = st.slider("Soil Moisture (%)", 5, 100, 38)
 
-        base_water = 12000
         factor = ENV_CONDITIONS[env_t]["irrigation_factor"]
         rec_liters = (
-            round(base_water * factor * (1 - moisture_pct / 120), 0)
+            round(12000 * factor * (1 - moisture_pct / 120), 0)
             if moisture_pct < 65
             else 0
         )
 
         st.info(
-            f"💧 **Smart Irrigation Recommendation:** Apply **{rec_liters:,.0f} Liters/acre** based on {moisture_pct}% moisture & {env_t}."
+            f"💧 **Recommended Irrigation:** Apply **{rec_liters:,.0f} Liters/acre**."
         )
         notes = st.text_input(
-            "Field Observation / Pest Note",
-            placeholder="e.g., Drip run for 2 hours, healthy leaf color",
+            "Field Note", placeholder="e.g., 2 hrs drip irrigation completed"
         )
 
-        if st.form_submit_button("💾 Save Irrigation & Field Log"):
+        if st.form_submit_button("💾 Save Irrigation Log"):
             conn = sqlite3.connect("smart_farm.db")
             conn.execute(
                 "INSERT INTO advisory_logs (log_date, plot_name, soil_type, environment, crop_selected, soil_moisture, irrigation_liters, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -502,54 +653,50 @@ with tab3:
             )
             conn.commit()
             conn.close()
-            st.success("✅ Field & irrigation log saved!")
+            st.success("✅ Irrigation log saved!")
 
-# === TAB 4: WORKERS & DAILY ATTENDANCE ===
+# === TAB 4: WORKERS, WAGES & TASKS ===
 with tab4:
-    st.subheader("Farm Workforce & Wage Management")
-    wcol1, wcol2 = st.columns([1, 1.3])
+    st.subheader("Worker Attendance, Wages & Daily Tasks")
+    wcol1, wcol2 = st.columns(2)
     with wcol1:
-        st.markdown("#### ➕ Register New Worker")
+        st.markdown("#### ➕ Add Worker")
         with st.form("add_worker_form", clear_on_submit=True):
-            w_name = st.text_input("Worker Full Name")
+            w_name = st.text_input("Worker Name")
             w_role = st.selectbox(
-                "Primary Role",
+                "Role",
                 [
                     "Field Labor",
-                    "Tractor / Harvester Operator",
-                    "Spraying Specialist",
-                    "Irrigation Technician",
-                    "Supervisor",
+                    "Tractor Operator",
+                    "Spray Specialist",
+                    "Irrigation Tech",
                 ],
             )
             w_wage = st.number_input(
                 "Daily Wage (₹)", min_value=100, max_value=5000, value=500, step=50
             )
-            w_phone = st.text_input("Mobile Number (Optional)")
             if st.form_submit_button("Save Worker"):
                 if w_name.strip():
                     try:
                         conn = sqlite3.connect("smart_farm.db")
                         conn.execute(
                             "INSERT INTO workers (name, role, daily_wage, phone) VALUES (?, ?, ?, ?)",
-                            (w_name.strip(), w_role, w_wage, w_phone.strip()),
+                            (w_name.strip(), w_role, w_wage, ""),
                         )
                         conn.commit()
                         conn.close()
                         st.success(f"Added {w_name}!")
                     except sqlite3.IntegrityError:
-                        st.error("Worker name already exists.")
+                        st.error("Worker already exists.")
 
     with wcol2:
-        st.markdown("#### ✅ Mark Today's Attendance & Wages")
+        st.markdown("#### ✅ Mark Attendance")
         conn = sqlite3.connect("smart_farm.db")
         workers_df = pd.read_sql_query("SELECT * FROM workers", conn)
         conn.close()
 
         if workers_df.empty:
-            st.warning(
-                "No workers registered yet. Add your workers on the left first."
-            )
+            st.warning("Add a worker on the left first.")
         else:
             with st.form("attendance_form"):
                 att_date = st.date_input("Work Date", date.today())
@@ -557,14 +704,11 @@ with tab4:
                     "Select Worker", workers_df["name"].tolist()
                 )
                 att_status = st.selectbox(
-                    "Attendance Status",
-                    ["Present (Full Day)", "Half Day", "Absent"],
+                    "Status", ["Present (Full Day)", "Half Day", "Absent"]
                 )
                 work_done = st.text_input(
-                    "Work / Task Performed",
-                    placeholder="e.g., Fertilizer application & weeding",
+                    "Task Done", placeholder="e.g., Weeding & spraying"
                 )
-
                 base_wage = float(
                     workers_df.loc[
                         workers_df["name"] == sel_worker, "daily_wage"
@@ -575,7 +719,6 @@ with tab4:
                     if att_status == "Present (Full Day)"
                     else (base_wage * 0.5 if att_status == "Half Day" else 0.0)
                 )
-
                 if st.form_submit_button("Record Attendance"):
                     conn = sqlite3.connect("smart_farm.db")
                     conn.execute(
@@ -590,89 +733,29 @@ with tab4:
                     )
                     conn.commit()
                     conn.close()
-                    st.success(
-                        f"Recorded {att_status} for {sel_worker} (Wage: ₹{earned:.0f})"
-                    )
+                    st.success(f"Saved! Wage: ₹{earned:.0f}")
 
-# === TAB 5: FARM TASKS & SCHEDULE ===
+# === TAB 5: PROFIT / LOSS & MANDI ROI ===
 with tab5:
-    st.subheader("Farm Operations & Task Planner")
-    with st.form("task_form", clear_on_submit=True):
-        tc1, tc2, tc3 = st.columns(3)
-        with tc1:
-            t_date = st.date_input("Target Date", date.today())
-            t_plot = st.text_input("Plot Name", placeholder="e.g., East Plot")
-        with tc2:
-            t_title = st.text_input(
-                "Operation / Task",
-                placeholder="e.g., Foliar spray 19:19:19 + Micronutrients",
-            )
-            t_assign = st.text_input(
-                "Assigned Worker / Team", placeholder="e.g., Ramesh & Team"
-            )
-        with tc3:
-            t_prio = st.selectbox("Priority", ["High", "Medium", "Low"])
-            t_stat = st.selectbox(
-                "Status", ["Pending", "In Progress", "Completed"]
-            )
-
-        if st.form_submit_button("➕ Add Farm Task"):
-            if t_title.strip():
-                conn = sqlite3.connect("smart_farm.db")
-                conn.execute(
-                    "INSERT INTO farm_tasks (due_date, plot_name, task_title, assigned_to, priority, status) VALUES (?, ?, ?, ?, ?, ?)",
-                    (
-                        str(t_date),
-                        t_plot,
-                        t_title.strip(),
-                        t_assign,
-                        t_prio,
-                        t_stat,
-                    ),
-                )
-                conn.commit()
-                conn.close()
-                st.success("Task added to farm schedule!")
-
-    conn = sqlite3.connect("smart_farm.db")
-    tasks_df = pd.read_sql_query(
-        "SELECT id, due_date, plot_name, task_title, assigned_to, priority, status FROM farm_tasks ORDER BY due_date ASC",
-        conn,
-    )
-    conn.close()
-    if not tasks_df.empty:
-        st.dataframe(tasks_df, use_container_width=True)
-
-# === TAB 6: PROFIT / LOSS & MANDI ROI CALCULATOR ===
-with tab6:
-    st.subheader("💰 Farm Expense, APMC Mandi Revenue & Net Profit ROI")
-
+    st.subheader("💰 Expense Ledger & Mandi Net Profit Calculator")
     with st.form("expense_form", clear_on_submit=True):
         ec1, ec2, ec3 = st.columns(3)
         with ec1:
-            exp_date = st.date_input("Expense Date", date.today())
+            exp_date = st.date_input("Date", date.today())
             exp_crop = st.selectbox(
                 "Crop", list(CROP_GUIDES.keys()), key="exp_crop"
             )
         with ec2:
             exp_cat = st.selectbox(
-                "Expense Category",
-                [
-                    "Seeds / Planting Material",
-                    "Fertilizers (Urea/DAP/MOP)",
-                    "Pesticides / Foliar Sprays",
-                    "Irrigation / Electricity",
-                    "Transport & Mandi Commission",
-                ],
+                "Category",
+                ["Seeds", "Fertilizers", "Pesticides", "Irrigation", "Transport"],
             )
             exp_amt = st.number_input(
-                "Amount Spent (₹)", min_value=50, max_value=1000000, value=2500
+                "Amount (₹)", min_value=50, max_value=1000000, value=2000
             )
         with ec3:
-            exp_note = st.text_input(
-                "Bill / Vendor Note", placeholder="e.g., 4 Bags DAP + Micronutrients"
-            )
-        if st.form_submit_button("💾 Log Farm Input Expense"):
+            exp_note = st.text_input("Note", placeholder="e.g., 3 Bags Urea")
+        if st.form_submit_button("💾 Save Expense"):
             conn = sqlite3.connect("smart_farm.db")
             conn.execute(
                 "INSERT INTO farm_expenses (exp_date, crop_name, category, amount, notes) VALUES (?, ?, ?, ?, ?)",
@@ -680,108 +763,62 @@ with tab6:
             )
             conn.commit()
             conn.close()
-            st.success("✅ Input expense recorded!")
+            st.success("✅ Expense saved!")
 
     conn = sqlite3.connect("smart_farm.db")
-    total_wage_cost = float(
+    total_wages = float(
         pd.read_sql_query(
             "SELECT COALESCE(SUM(wage_earned), 0) AS w FROM attendance", conn
         )["w"][0]
     )
-    total_fuel_cost = float(
+    total_fuel = float(
         pd.read_sql_query(
             "SELECT COALESCE(SUM(fuel_cost), 0) AS f FROM machinery_logs", conn
         )["f"][0]
     )
-    total_input_cost = float(
+    total_inputs = float(
         pd.read_sql_query(
             "SELECT COALESCE(SUM(amount), 0) AS a FROM farm_expenses", conn
         )["a"][0]
     )
     conn.close()
 
-    grand_total_cost = total_wage_cost + total_fuel_cost + total_input_cost
-
-    st.markdown("#### 📈 Harvest Sale & Mandi Profit Simulator")
-    rc1, rc2, rc3 = st.columns(3)
+    total_cost = total_wages + total_fuel + total_inputs
+    rc1, rc2 = st.columns(2)
     with rc1:
-        harvest_quintals = st.number_input(
-            "Expected / Harvested Yield (Quintals)",
-            min_value=1.0,
-            max_value=5000.0,
-            value=45.0,
-            step=1.0,
+        yield_qtl = st.number_input(
+            "Harvest Yield (Quintals)", min_value=1.0, value=45.0
         )
     with rc2:
-        mandi_rate = st.number_input(
-            "APMC Mandi Selling Price (₹ / Quintal)",
-            min_value=100,
-            max_value=50000,
-            value=2400,
-            step=50,
-        )
-    with rc3:
-        gross_revenue = harvest_quintals * mandi_rate
-        net_profit = gross_revenue - grand_total_cost
-        roi_pct = (
-            (net_profit / grand_total_cost * 100) if grand_total_cost > 0 else 100.0
+        mandi_price = st.number_input(
+            "Mandi Price (₹ / Quintal)", min_value=100, value=2400
         )
 
-    pm1, pm2, pm3, pm4 = st.columns(4)
-    pm1.metric(
-        "Total Farm Cost",
-        f"₹ {grand_total_cost:,.0f}",
-        f"Wages: ₹{total_wage_cost:,.0f}",
-    )
-    pm2.metric("Gross Mandi Revenue", f"₹ {gross_revenue:,.0f}")
-    pm3.metric(
-        "Net Farm Profit",
-        f"₹ {net_profit:,.0f}",
-        delta="Profitable" if net_profit >= 0 else "Loss",
-    )
-    pm4.metric("Return on Investment", f"{roi_pct:.1f}%")
+    revenue = yield_qtl * mandi_price
+    profit = revenue - total_cost
+    pm1, pm2, pm3 = st.columns(3)
+    pm1.metric("Total Farm Cost", f"₹ {total_cost:,.0f}")
+    pm2.metric("Gross Mandi Revenue", f"₹ {revenue:,.0f}")
+    pm3.metric("Net Profit", f"₹ {profit:,.0f}")
 
-# === TAB 7: MACHINERY & FUEL TELEMETRY ===
-with tab7:
-    st.subheader("🚜 Farm Machinery, Fuel & Service Maintenance Log")
+# === TAB 6: MACHINERY TELEMETRY & CSV REPORTS ===
+with tab6:
+    st.subheader("🚜 Machinery Telemetry & CSV Report Downloads")
     with st.form("machinery_form", clear_on_submit=True):
         mc1, mc2, mc3 = st.columns(3)
         with mc1:
-            m_date = st.date_input("Operation Date", date.today())
+            m_date = st.date_input("Date", date.today())
             m_name = st.selectbox(
-                "Equipment / Machine",
-                [
-                    "Tractor (45 HP)",
-                    "Mini Power Tiller / Inter-Cultivator",
-                    "Battery Knapsack Sprayer",
-                    "Borewell / Drip Pump Motor",
-                    "Rotavator / Harvester",
-                ],
+                "Machine",
+                ["Tractor (45 HP)", "Mini Power Tiller", "Battery Sprayer", "Drip Pump"],
             )
         with mc2:
-            m_op = st.text_input(
-                "Field Operation", placeholder="e.g., Inter-row weeding & tilling"
-            )
-            m_hrs = st.number_input(
-                "Engine / Motor Run Hours",
-                min_value=0.5,
-                max_value=24.0,
-                value=3.5,
-                step=0.5,
-            )
+            m_op = st.text_input("Operation", placeholder="e.g., Inter-cultivation")
+            m_hrs = st.number_input("Run Hours", min_value=0.5, value=3.0)
         with mc3:
-            m_fuel = st.number_input(
-                "Diesel / Fuel Used (Liters)",
-                min_value=0.0,
-                max_value=200.0,
-                value=8.0,
-                step=0.5,
-            )
-            m_cost = st.number_input(
-                "Fuel / Power Cost (₹)", min_value=0, max_value=20000, value=760
-            )
-
-        if st.form_submit_button("💾 Log Machinery Telemetry"):
+            m_fuel = st.number_input("Diesel Used (L)", min_value=0.0, value=6.0)
+            m_cost = st.number_input("Fuel Cost (₹)", min_value=0, value=570)
+        if st.form_submit_button("💾 Save Machinery Log"):
             conn = sqlite3.connect("smart_farm.db")
             conn.execute(
                 "INSERT INTO machinery_logs (log_date, machine_name, operation_type, hours_run, fuel_liters, fuel_cost, next_service_hrs) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -789,71 +826,33 @@ with tab7:
             )
             conn.commit()
             conn.close()
-            st.success("✅ Machinery hours & fuel telemetry saved!")
+            st.success("✅ Machinery log saved!")
 
     conn = sqlite3.connect("smart_farm.db")
-    mach_df = pd.read_sql_query(
-        "SELECT * FROM machinery_logs ORDER BY id DESC", conn
-    )
+    adv_df = pd.read_sql_query("SELECT * FROM advisory_logs ORDER BY id DESC", conn)
+    att_df = pd.read_sql_query("SELECT * FROM attendance ORDER BY id DESC", conn)
+    exp_df = pd.read_sql_query("SELECT * FROM farm_expenses ORDER BY id DESC", conn)
     conn.close()
-    if not mach_df.empty:
-        total_hrs = mach_df["hours_run"].sum()
-        total_diesel = mach_df["fuel_liters"].sum()
-        mm1, mm2, mm3 = st.columns(3)
-        mm1.metric("Total Machine Run Hours", f"{total_hrs:.1f} hrs")
-        mm2.metric("Total Diesel Consumed", f"{total_diesel:.1f} L")
-        mm3.metric(
-            "Hours Until 250h Oil/Blade Service",
-            f"{max(0.0, 250.0 - (total_hrs % 250)):.1f} hrs",
+
+    d1, d2, d3 = st.columns(3)
+    with d1:
+        st.download_button(
+            "📥 Download Irrigation CSV",
+            adv_df.to_csv(index=False).encode("utf-8"),
+            "irrigation_logs.csv",
+            "text/csv",
         )
-        st.dataframe(mach_df, use_container_width=True)
-
-# === TAB 8: REPORTS & CSV EXPORT ===
-with tab8:
-    st.subheader("📊 Download Complete Farm Reports (CSV)")
-    conn = sqlite3.connect("smart_farm.db")
-    adv_df = pd.read_sql_query(
-        "SELECT * FROM advisory_logs ORDER BY id DESC", conn
-    )
-    att_df = pd.read_sql_query(
-        "SELECT * FROM attendance ORDER BY id DESC", conn
-    )
-    exp_df = pd.read_sql_query(
-        "SELECT * FROM farm_expenses ORDER BY id DESC", conn
-    )
-    conn.close()
-
-    c_rep1, c_rep2, c_rep3 = st.columns(3)
-    with c_rep1:
-        st.markdown("#### 1. Irrigation Logs")
-        if not adv_df.empty:
-            st.download_button(
-                "📥 Irrigation CSV",
-                adv_df.to_csv(index=False).encode("utf-8"),
-                "advisory_report.csv",
-                "text/csv",
-            )
-        else:
-            st.info("No irrigation logs yet.")
-    with c_rep2:
-        st.markdown("#### 2. Worker Wages")
-        if not att_df.empty:
-            st.download_button(
-                "📥 Wages CSV",
-                att_df.to_csv(index=False).encode("utf-8"),
-                "wage_report.csv",
-                "text/csv",
-            )
-        else:
-            st.info("No wage records yet.")
-    with c_rep3:
-        st.markdown("#### 3. Input Expenses")
-        if not exp_df.empty:
-            st.download_button(
-                "📥 Expenses CSV",
-                exp_df.to_csv(index=False).encode("utf-8"),
-                "expenses_report.csv",
-                "text/csv",
-            )
-        else:
-            st.info("No expenses logged yet.")
+    with d2:
+        st.download_button(
+            "📥 Download Wages CSV",
+            att_df.to_csv(index=False).encode("utf-8"),
+            "worker_wages.csv",
+            "text/csv",
+        )
+    with d3:
+        st.download_button(
+            "📥 Download Expenses CSV",
+            exp_df.to_csv(index=False).encode("utf-8"),
+            "farm_expenses.csv",
+            "text/csv",
+        )
