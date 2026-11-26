@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- MOBILE-RESPONSIVE HIGH-CONTRAST UI (TOP HEADER & PHONE SCREEN FIXED) ---
+# --- MOBILE-RESPONSIVE HIGH-CONTRAST UI ---
 CSS_STYLE = (
     "<style>"
     "[data-testid='stHeader'] { background: transparent !important; height: 2.5rem !important; }"
@@ -31,6 +31,9 @@ CSS_STYLE = (
     ".hero-white { color: #FFFFFF !important; }"
     ".version-badge { background-color: #22C55E; color: #07111A !important; font-size: 0.85rem; font-weight: 900; padding: 3px 8px; border-radius: 8px; margin-left: 6px; }"
     ".hero-sub { color: #CBD5E1 !important; font-size: 0.88rem; margin-top: 6px; }"
+    ".worker-card { background-color: #152233; border: 1.5px solid #22C55E; border-radius: 12px; padding: 14px; margin-bottom: 10px; }"
+    ".badge-verified { background-color: #22C55E; color: #061019 !important; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.78rem; }"
+    ".badge-free { background-color: #0284C7; color: #FFFFFF !important; padding: 2px 8px; border-radius: 6px; font-weight: 800; font-size: 0.78rem; margin-left: 6px; }"
     ".stTabs [data-baseweb='tab-list'] { gap: 6px; background-color: #152132; padding: 6px; border-radius: 12px; border: 1px solid rgba(74, 222, 128, 0.35); flex-wrap: wrap !important; }"
     ".stTabs [data-baseweb='tab'] { background-color: #1E2D42; border-radius: 8px; color: #FFFFFF !important; font-weight: 700; padding: 8px 10px; font-size: 0.85rem !important; flex-grow: 1; justify-content: center; }"
     ".stTabs [aria-selected='true'] { background: #22C55E !important; color: #061019 !important; font-weight: 800 !important; }"
@@ -41,6 +44,7 @@ CSS_STYLE = (
     "[data-testid='stForm'], [data-testid='stExpander'] { background-color: #131E2E !important; border: 1px solid rgba(52, 211, 153, 0.35) !important; border-radius: 12px; padding: 14px; }"
     ".stButton > button, .stFormSubmitButton > button, .stDownloadButton > button { background: #22C55E !important; color: #061019 !important; font-weight: 800 !important; border: none !important; border-radius: 10px !important; min-height: 46px !important; width: 100% !important; font-size: 1rem !important; }"
     ".stButton > button p, .stFormSubmitButton > button p, .stDownloadButton > button p { color: #061019 !important; font-weight: 800 !important; }"
+    ".footer-note { margin-top: 24px; padding: 12px; border-top: 1px solid #334155; color: #94A3B8 !important; font-size: 0.8rem; text-align: center; }"
     "@media (max-width: 768px) { .block-container { padding-top: 4.2rem !important; } .hero-title { font-size: 1.4rem !important; } .stTabs [data-baseweb='tab'] { width: 48% !important; } [data-testid='column'] { width: 100% !important; flex: 1 1 100% !important; min-width: 100% !important; } }"
     "</style>"
 )
@@ -51,14 +55,24 @@ st.markdown(CSS_STYLE, unsafe_allow_html=True)
 def init_db():
     conn = sqlite3.connect("smart_farm.db")
     c = conn.cursor()
+
     c.execute("PRAGMA table_info(advisory_logs)")
-    existing_cols = [row[1] for row in c.fetchall()]
-    required_cols = [
+    adv_cols = [row[1] for row in c.fetchall()]
+    req_adv = [
         "id", "log_date", "plot_name", "soil_type", "environment",
         "crop_selected", "soil_moisture", "irrigation_liters", "notes",
     ]
-    if existing_cols and existing_cols != required_cols:
+    if adv_cols and adv_cols != req_adv:
         c.execute("DROP TABLE IF EXISTS advisory_logs")
+
+    c.execute("PRAGMA table_info(workers)")
+    wrk_cols = [row[1] for row in c.fetchall()]
+    req_wrk = [
+        "id", "name", "role", "daily_wage", "phone",
+        "district", "village", "free_time", "verified_status", "availability",
+    ]
+    if wrk_cols and wrk_cols != req_wrk:
+        c.execute("DROP TABLE IF EXISTS workers")
 
     c.execute(
         "CREATE TABLE IF NOT EXISTS advisory_logs ("
@@ -69,7 +83,8 @@ def init_db():
     c.execute(
         "CREATE TABLE IF NOT EXISTS workers ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, "
-        "role TEXT, daily_wage REAL, phone TEXT)"
+        "role TEXT, daily_wage REAL, phone TEXT, district TEXT, "
+        "village TEXT, free_time TEXT, verified_status TEXT, availability TEXT)"
     )
     c.execute(
         "CREATE TABLE IF NOT EXISTS attendance ("
@@ -81,21 +96,39 @@ def init_db():
         "id INTEGER PRIMARY KEY AUTOINCREMENT, exp_date TEXT, crop_name TEXT, "
         "category TEXT, amount REAL, notes TEXT)"
     )
+
+    c.execute("SELECT COUNT(*) FROM workers")
+    if c.fetchone()[0] == 0:
+        sample_workers = [
+            ("Ramesh Patil", "Spraying Specialist", 600.0, "9845011223", "Belagavi", "Machche", "Morning (6 AM - 12 PM) & Emergency", "Verified ✅", "Available Now"),
+            ("Basavaraj Naik", "Tractor / Tiller Operator", 750.0, "9901234567", "Belagavi", "Machche", "Full Day (8 AM - 5 PM)", "Verified ✅", "Available Now"),
+            ("Laxmi Chougule", "Field & Weeding Labor", 450.0, "9741122334", "Belagavi", "Peeranwadi", "Morning (7 AM - 1 PM)", "Verified ✅", "Available Now"),
+            ("Suresh Kadam", "Irrigation & Drip Tech", 550.0, "9611987654", "Belagavi", "Yellur", "Afternoon / Evening (2 PM - 6 PM)", "Verified ✅", "Available Now"),
+        ]
+        c.executemany(
+            "INSERT INTO workers (name, role, daily_wage, phone, district, village, free_time, verified_status, availability) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            sample_workers,
+        )
+
     conn.commit()
     conn.close()
 
 
 init_db()
 
+# --- LANGUAGE SELECTOR (ENGLISH / ಕನ್ನಡ) ---
+lang = st.radio("🌐 Language / ಭಾಷೆ", ["English", "ಕನ್ನಡ (Kannada)"], horizontal=True)
+IS_KN = lang != "English"
+
 # --- DISTRICTS & LIVE OPEN-METEO WEATHER API ---
 DISTRICTS = {
     "Belagavi, Karnataka": (15.8497, 74.4977),
+    "Machche Field Site, Belagavi": (15.7855, 74.4844),
     "Dharwad / Hubballi, Karnataka": (15.4589, 75.0078),
     "Vijayapura, Karnataka": (16.8302, 75.7100),
     "Bagalkot, Karnataka": (16.1691, 75.6615),
     "Chikkamagaluru, Karnataka": (13.3161, 75.7720),
     "Bengaluru Rural, Karnataka": (13.2846, 77.6078),
-    "Kolhapur, Maharashtra": (16.7050, 74.2433),
     "Custom GPS Coordinates": (15.8497, 74.4977),
 }
 
@@ -130,7 +163,6 @@ def classify_environment(temp_c: float, rain_4h_mm: float, rain_prob_4h: float):
     return "Warm & Humid (Pre-Monsoon / Moderate)"
 
 
-# --- COMPLETE FERTILIZER & CHEMICAL KNOWLEDGE BASE ---
 ALL_FERTILIZERS = [
     {"Name": "Urea (46-0-0)", "Type": "Granular N", "Bag": "45 kg", "Role": "Fast leaf & stem growth", "Acre Dose": "50–110 kg/acre"},
     {"Name": "DAP (18-46-0)", "Type": "Granular P+N", "Bag": "50 kg", "Role": "Root growth & flowering", "Acre Dose": "45–85 kg/acre"},
@@ -282,21 +314,30 @@ CROP_GUIDES = {
 }
 
 # --- HERO HEADER BANNER ---
+HERO_SUB_TEXT = (
+    "📷 ಸಸ್ಯದ ಫೋಟೋ ಸ್ಕ್ಯಾನ್ • 🧪 ರಸಗೊಬ್ಬರ ಲೆಕ್ಕಾಚಾರ • 🌦️ ನೇರ ಹವಾಮಾನ • 👷 ಕಾರ್ಮಿಕರ ಸ್ವಯಂ-ನೋಂದಣಿ"
+    if IS_KN
+    else "📷 Plant Photo Scanner • 🧪 All Fertilizers & Chemicals • 🌦️ Live Weather • 👷 Worker Self-Registration"
+)
 HERO_HTML = (
     '<div class="hero-card">'
     '<div class="hero-title"><span class="hero-green">SMART FARM</span> '
     '<span class="hero-white">ASSISTANT</span>'
     '<span class="version-badge">V3.0</span></div>'
-    '<div class="hero-sub">📷 Plant Photo Scanner • 🧪 All Fertilizers & Chemicals • 🌦️ Live Weather • 💰 Mandi ROI</div>'
+    f'<div class="hero-sub">{HERO_SUB_TEXT}</div>'
     '</div>'
 )
 st.markdown(HERO_HTML, unsafe_allow_html=True)
 
 # --- LIVE WEATHER & SPRAY SAFETY ---
-st.markdown("### 🌦️ Live Weather & Spray Safety")
+st.markdown("### 🌦️ ನೇರ ಹವಾಮಾನ ಮತ್ತು ಸಿಂಪಡಣೆ ಎಚ್ಚರಿಕೆ" if IS_KN else "### 🌦️ Live Weather & Spray Safety")
 w_sel1, w_sel2, w_sel3 = st.columns([1.5, 1, 1])
 with w_sel1:
-    chosen_district = st.selectbox("Select Farm District / Region", list(DISTRICTS.keys()), index=0)
+    chosen_district = st.selectbox(
+        "ಜಿಲ್ಲೆ / ಪ್ರದೇಶ ಆಯ್ಕೆಮಾಡಿ" if IS_KN else "Select Farm District / Region",
+        list(DISTRICTS.keys()),
+        index=0,
+    )
 default_lat, default_lon = DISTRICTS[chosen_district]
 with w_sel2:
     farm_lat = st.number_input("GPS Latitude", value=default_lat, format="%.4f", disabled=(chosen_district != "Custom GPS Coordinates"))
@@ -319,41 +360,68 @@ if weather_data and "current" in weather_data:
     auto_env = classify_environment(temp_now, total_rain_4h, max_prob_4h)
 
     wm1, wm2, wm3, wm4 = st.columns(4)
-    wm1.metric("🌡️ Temp", f"{temp_now:.1f} °C")
-    wm2.metric("💧 Humidity", f"{hum_now}%")
-    wm3.metric("💨 Wind", f"{wind_now:.1f} km/h")
-    wm4.metric("🌧️ 4-Hr Rain", f"{max_prob_4h}%", f"{total_rain_4h:.1f} mm")
+    wm1.metric("🌡️ ಉಷ್ಣಾಂಶ (Temp)" if IS_KN else "🌡️ Temp", f"{temp_now:.1f} °C")
+    wm2.metric("💧 ತೇವಾಂಶ (Humidity)" if IS_KN else "💧 Humidity", f"{hum_now}%")
+    wm3.metric("💨 ಗಾಳಿ (Wind)" if IS_KN else "💨 Wind", f"{wind_now:.1f} km/h")
+    wm4.metric("🌧️ 4-ಗಂಟೆ ಮಳೆ" if IS_KN else "🌧️ 4-Hr Rain", f"{max_prob_4h}%", f"{total_rain_4h:.1f} mm")
 
     if max_prob_4h >= 50 or total_rain_4h >= 0.5:
-        st.error(f"🚨 DO NOT SPRAY: {max_prob_4h}% rain risk ({total_rain_4h:.1f} mm) in next 4 hours!")
+        msg = (
+            f"🚨 ಔಷಧಿ ಸಿಂಪಡಿಸಬೇಡಿ: ಮುಂದಿನ 4 ಗಂಟೆಗಳಲ್ಲಿ {max_prob_4h}% ಮಳೆಯ ಸಾಧ್ಯತೆ ({total_rain_4h:.1f} mm) ಇದೆ!"
+            if IS_KN
+            else f"🚨 DO NOT SPRAY: {max_prob_4h}% rain risk ({total_rain_4h:.1f} mm) in next 4 hours!"
+        )
+        st.error(msg)
     elif wind_now > 15.0:
-        st.warning(f"⚠️ HIGH WIND ({wind_now:.1f} km/h): Delay spraying to avoid drift.")
+        msg = (
+            f"⚠️ ಹೆಚ್ಚಿನ ಗಾಳಿ ({wind_now:.1f} km/h): ಔಷಧಿ ಸಿಂಪಡಣೆಯನ್ನು ಮುಂದೂಡಿ."
+            if IS_KN
+            else f"⚠️ HIGH WIND ({wind_now:.1f} km/h): Delay spraying to avoid drift."
+        )
+        st.warning(msg)
     else:
-        st.success(f"✅ SAFE TO SPRAY: Low rain risk ({max_prob_4h}%) & calm wind ({wind_now:.1f} km/h).")
+        msg = (
+            f"✅ ಸಿಂಪಡಣೆಗೆ ಸುರಕ್ಷಿತ ಸಮಯ: ಮಳೆ ಸಾಧ್ಯತೆ ಕಡಿಮೆ ({max_prob_4h}%) ಮತ್ತು ಗಾಳಿ ಶಾಂತವಾಗಿದೆ ({wind_now:.1f} km/h)."
+            if IS_KN
+            else f"✅ SAFE TO SPRAY: Low rain risk ({max_prob_4h}%) & calm wind ({wind_now:.1f} km/h)."
+        )
+        st.success(msg)
 
 env_keys = list(ENV_CONDITIONS.keys())
 default_env_idx = env_keys.index(auto_env) if auto_env in env_keys else 1
 
 st.markdown("---")
 
-# --- 6 MOBILE-WRAPPING FUNCTION TABS ---
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📷 1. Photo Scan",
-    "🧪 2. Chemicals",
-    "🌱 3. Crop & Soil",
-    "💧 4. Irrigation",
-    "👷 5. Workers",
-    "💰 6. Profit & CSV",
-])
+TAB_LABELS = (
+    [
+        "📷 1. ಫೋಟೋ ಸ್ಕ್ಯಾನ್",
+        "🧪 2. ರಸಗೊಬ್ಬರ/ಔಷಧಿ",
+        "🌱 3. ಬೆಳೆ ಮತ್ತು ಮಣ್ಣು",
+        "💧 4. ನೀರಾವರಿ",
+        "👷 5. ಕಾರ್ಮಿಕರ ನೋಂದಣಿ",
+        "💰 6. ಲಾಭ ಮತ್ತು CSV",
+    ]
+    if IS_KN
+    else [
+        "📷 1. Photo Scan",
+        "🧪 2. Chemicals",
+        "🌱 3. Crop & Soil",
+        "💧 4. Irrigation",
+        "👷 5. Workers & Self-Register",
+        "💰 6. Profit & CSV",
+    ]
+)
+
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(TAB_LABELS)
 
 # === TAB 1: CAMERA PLANT PHOTO SCANNER ===
 with tab1:
-    st.subheader("📷 Plant Photo Scanner & Chemical Advisor")
+    st.subheader("📷 ಸಸ್ಯದ ಫೋಟೋ ಸ್ಕ್ಯಾನರ್ ಮತ್ತು ಔಷಧಿ ಸಲಹೆ" if IS_KN else "📷 Plant Photo Scanner & Chemical Advisor")
     cam_col1, cam_col2 = st.columns(2)
     with cam_col1:
-        camera_photo = st.camera_input("📸 Take Plant / Leaf Photo")
+        camera_photo = st.camera_input("📸 ಸಸ್ಯ/ಎಲೆಯ ಫೋಟೋ ತೆಗೆಯಿರಿ" if IS_KN else "📸 Take Plant / Leaf Photo")
     with cam_col2:
-        uploaded_photo = st.file_uploader("📁 Or Upload Leaf Image", type=["jpg", "jpeg", "png"])
+        uploaded_photo = st.file_uploader("📁 ಅಥವಾ ಫೋಟೋ ಅಪ್‌ಲೋಡ್ ಮಾಡಿ" if IS_KN else "📁 Or Upload Leaf Image", type=["jpg", "jpeg", "png"])
 
     active_photo = camera_photo if camera_photo is not None else uploaded_photo
 
@@ -394,7 +462,7 @@ with tab1:
 
 # === TAB 2: ALL FERTILIZERS & CHEMICAL CALCULATOR ===
 with tab2:
-    st.subheader("🧪 Fertilizer (Urea, DAP, MOP, NPK) & Chemical Calculator")
+    st.subheader("🧪 ರಸಗೊಬ್ಬರ (Urea, DAP, MOP) ಮತ್ತು ಔಷಧಿ ಲೆಕ್ಕಾಚಾರ" if IS_KN else "🧪 Fertilizer (Urea, DAP, MOP, NPK) & Chemical Calculator")
     fcol1, fcol2 = st.columns(2)
     with fcol1:
         calc_crop = st.selectbox("Select Crop", list(CROP_GUIDES.keys()), key="fert_crop")
@@ -430,7 +498,7 @@ with tab2:
 
 # === TAB 3: SOIL, WEATHER & CROP SOWING ===
 with tab3:
-    st.subheader("🌱 Soil & Weather Crop Sowing Guide")
+    st.subheader("🌱 ಮಣ್ಣು ಮತ್ತು ಹವಾಮಾನ ಆಧಾರಿತ ಬಿತ್ತನೆ ಮಾರ್ಗದರ್ಶಿ" if IS_KN else "🌱 Soil & Weather Crop Sowing Guide")
     col1, col2, col3 = st.columns(3)
     with col1:
         selected_soil = st.selectbox("1. Soil Type", list(SOIL_PROFILES.keys()))
@@ -454,7 +522,7 @@ with tab3:
 
 # === TAB 4: IRRIGATION & FIELD LOG ===
 with tab4:
-    st.subheader("💧 Daily Moisture & Irrigation Log")
+    st.subheader("💧 ದೈನಂದಿನ ತೇವಾಂಶ ಮತ್ತು ನೀರಾವರಿ ದಾಖಲೆ" if IS_KN else "💧 Daily Moisture & Irrigation Log")
     with st.form("irrigation_form", clear_on_submit=True):
         log_date = st.date_input("Date", date.today())
         plot_name = st.text_input("Plot Name", placeholder="e.g., North Plot")
@@ -479,48 +547,176 @@ with tab4:
             conn.close()
             st.success("✅ Saved!")
 
-# === TAB 5: WORKERS & WAGES ===
+# === TAB 5: WORKER SELF-REGISTRATION, EMERGENCY FINDER & ATTENDANCE ===
 with tab5:
-    st.subheader("👷 Worker Attendance & Wages")
-    with st.form("add_worker_form", clear_on_submit=True):
-        st.markdown("#### ➕ Add New Worker")
-        w_name = st.text_input("Worker Name")
-        w_role = st.selectbox("Role", ["Field Labor", "Tractor Operator", "Spray Specialist", "Irrigation Tech"])
-        w_wage = st.number_input("Daily Wage (₹)", min_value=100, max_value=5000, value=500, step=50)
-        if st.form_submit_button("Save Worker"):
-            if w_name.strip():
-                try:
-                    conn = sqlite3.connect("smart_farm.db")
-                    conn.execute("INSERT INTO workers (name, role, daily_wage, phone) VALUES (?, ?, ?, ?)", (w_name.strip(), w_role, w_wage, ""))
-                    conn.commit()
-                    conn.close()
-                    st.success(f"Added {w_name}!")
-                except sqlite3.IntegrityError:
-                    st.error("Worker already exists.")
+    st.subheader("👷 ಕಾರ್ಮಿಕರ ಸ್ವಯಂ-ನೋಂದಣಿ ಮತ್ತು ತುರ್ತು ಬುಕಿಂಗ್" if IS_KN else "👷 Worker Self-Registration & Verified Emergency Finder")
 
     conn = sqlite3.connect("smart_farm.db")
-    workers_df = pd.read_sql_query("SELECT * FROM workers", conn)
+    workers_df = pd.read_sql_query("SELECT * FROM workers ORDER BY id DESC", conn)
+    att_history_df = pd.read_sql_query(
+        "SELECT work_date AS Date, worker_name AS Worker, status AS Status, task_assigned AS Task, wage_earned AS Wage_INR FROM attendance ORDER BY work_date DESC, id DESC",
+        conn,
+    )
     conn.close()
 
+    # 1. OPEN WORKER SELF-REGISTRATION PORTAL (ALWAYS VISIBLE ON SCREEN)
+    st.markdown("#### 📝 Worker Self-Registration (Register Yourself for Farm Work)")
+    with st.form("self_register_worker_form", clear_on_submit=True):
+        r_c1, r_c2 = st.columns(2)
+        with r_c1:
+            w_name = st.text_input("Your Full Name / ಹೆಸರು")
+            w_phone = st.text_input("Mobile Number / ಮೊಬೈಲ್ ಸಂಖ್ಯೆ", placeholder="e.g., 9845012345")
+            w_district = st.selectbox("District / ಜಿಲ್ಲೆ", ["Belagavi", "Dharwad", "Vijayapura", "Bagalkot", "Kolhapur", "Other"])
+            w_village = st.text_input("Village / ಗ್ರಾಮ", placeholder="e.g., Machche, Peeranwadi, Yellur, Kakati")
+        with r_c2:
+            w_role = st.selectbox("Work Skill / ಕೆಲಸದ ವಿಧ", [
+                "Field & Weeding Labor",
+                "Spraying Specialist",
+                "Tractor / Tiller Operator",
+                "Irrigation & Drip Tech",
+                "Harvesting Team",
+            ])
+            w_wage = st.number_input("Expected Daily Wage (₹)", min_value=100, max_value=5000, value=500, step=50)
+            w_free_time = st.selectbox("When Are You Free? / ಲಭ್ಯವಿರುವ ಸಮಯ", [
+                "Full Day (8 AM - 5 PM)",
+                "Morning (6 AM - 12 PM)",
+                "Afternoon / Evening (2 PM - 6 PM)",
+                "Emergency / On-Call Anytime",
+            ])
+            w_avail = st.selectbox("Current Availability / ಈಗಿನ ಸ್ಥಿತಿ", ["Available Now", "Busy / Booked"])
+
+        if st.form_submit_button("✅ Complete Worker Self-Registration"):
+            if w_name.strip() and w_village.strip() and w_phone.strip():
+                try:
+                    conn = sqlite3.connect("smart_farm.db")
+                    conn.execute(
+                        "INSERT INTO workers (name, role, daily_wage, phone, district, village, free_time, verified_status, availability) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        (
+                            w_name.strip(),
+                            w_role,
+                            w_wage,
+                            w_phone.strip(),
+                            w_district,
+                            w_village.strip(),
+                            w_free_time,
+                            "Verified ✅",
+                            w_avail,
+                        ),
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.success(f"🎉 Registration Complete! {w_name} ({w_village}, {w_district}) is now listed for farmers.")
+                    st.rerun()
+                except sqlite3.IntegrityError:
+                    st.error("This worker name is already registered. Update your availability status below.")
+            else:
+                st.warning("Please fill in your Name, Mobile Number, and Village.")
+
+    # 2. QUICK WORKER AVAILABILITY & FREE-TIME UPDATER (FOR ALREADY REGISTERED WORKERS)
+    if not workers_df.empty:
+        with st.expander("🔄 Already Registered? Update Your Free Time or Availability Status", expanded=False):
+            with st.form("update_worker_status_form"):
+                u_c1, u_c2, u_c3 = st.columns(3)
+                with u_c1:
+                    upd_worker = st.selectbox("Select Your Name", workers_df["name"].tolist())
+                with u_c2:
+                    upd_time = st.selectbox("New Free Time Slot", [
+                        "Full Day (8 AM - 5 PM)",
+                        "Morning (6 AM - 12 PM)",
+                        "Afternoon / Evening (2 PM - 6 PM)",
+                        "Emergency / On-Call Anytime",
+                    ])
+                with u_c3:
+                    upd_avail = st.selectbox("Update Status", ["Available Now", "Busy / Booked"])
+
+                if st.form_submit_button("🔄 Update My Availability"):
+                    conn = sqlite3.connect("smart_farm.db")
+                    conn.execute(
+                        "UPDATE workers SET free_time = ?, availability = ? WHERE name = ?",
+                        (upd_time, upd_avail, upd_worker),
+                    )
+                    conn.commit()
+                    conn.close()
+                    st.success(f"Updated {upd_worker} to {upd_avail} ({upd_time})!")
+                    st.rerun()
+
+    st.markdown("---")
+
+    # 3. EMERGENCY WORKER FINDER (FILTER BY DISTRICT, VILLAGE & FREE TIME)
+    st.markdown("#### 🚨 Find Verified Available Workers (District, Village & Free Time)")
+    f_col1, f_col2, f_col3 = st.columns(3)
+    all_districts = ["All Districts"] + sorted(workers_df["district"].dropna().unique().tolist()) if not workers_df.empty else ["All Districts"]
+    all_villages = ["All Villages"] + sorted(workers_df["village"].dropna().unique().tolist()) if not workers_df.empty else ["All Villages"]
+    all_times = [
+        "All Free Times",
+        "Full Day (8 AM - 5 PM)",
+        "Morning (6 AM - 12 PM)",
+        "Afternoon / Evening (2 PM - 6 PM)",
+        "Emergency / On-Call Anytime",
+    ]
+    with f_col1:
+        filt_dist = st.selectbox("Filter by District", all_districts)
+    with f_col2:
+        filt_vill = st.selectbox("Filter by Village", all_villages)
+    with f_col3:
+        filt_time = st.selectbox("Filter by Free Time Slot", all_times)
+
+    filtered_workers = workers_df.copy()
+    if not filtered_workers.empty:
+        if filt_dist != "All Districts":
+            filtered_workers = filtered_workers[filtered_workers["district"] == filt_dist]
+        if filt_vill != "All Villages":
+            filtered_workers = filtered_workers[filtered_workers["village"] == filt_vill]
+        if filt_time != "All Free Times":
+            filtered_workers = filtered_workers[filtered_workers["free_time"].str.contains(filt_time.split(" ")[0], case=False, na=False)]
+
+    if not filtered_workers.empty:
+        for _, w_row in filtered_workers.iterrows():
+            avail_badge = "🟢 Available Now" if w_row["availability"] == "Available Now" else "🔴 Busy / Booked"
+            card_html = (
+                f'<div class="worker-card">'
+                f'<div style="font-size:1.1rem; font-weight:800; color:#FFFFFF;">{w_row["name"]} '
+                f'<span class="badge-verified">{w_row["verified_status"]}</span>'
+                f'<span class="badge-free">{avail_badge}</span></div>'
+                f'<div style="margin-top:6px; font-size:0.9rem; color:#CBD5E1;">'
+                f'📍 <strong>Location:</strong> {w_row["village"]}, {w_row["district"]} &nbsp;|&nbsp; '
+                f'🛠️ <strong>Skill:</strong> {w_row["role"]} &nbsp;|&nbsp; '
+                f'💰 <strong>Wage:</strong> ₹{w_row["daily_wage"]:.0f}/day<br>'
+                f'⏰ <strong>Free Time:</strong> {w_row["free_time"]} &nbsp;|&nbsp; '
+                f'📞 <strong>Emergency Call:</strong> <a href="tel:{w_row["phone"]}" style="color:#4ADE80; font-weight:800;">{w_row["phone"]}</a>'
+                f'</div></div>'
+            )
+            st.markdown(card_html, unsafe_allow_html=True)
+    else:
+        st.warning("No verified workers match this filter.")
+
+    # 4. DAILY ATTENDANCE & SAVED DATE LOG
     if not workers_df.empty:
         with st.form("attendance_form"):
-            st.markdown("#### ✅ Mark Attendance")
+            st.markdown("#### ✅ Mark Daily Attendance & Save Work Date")
             att_date = st.date_input("Work Date", date.today())
             sel_worker = st.selectbox("Select Worker", workers_df["name"].tolist())
             att_status = st.selectbox("Status", ["Present (Full Day)", "Half Day", "Absent"])
-            work_done = st.text_input("Task Done", placeholder="e.g., Weeding & spraying")
+            work_done = st.text_input("Task Done", placeholder="e.g., Emergency pesticide spray & weeding")
             base_wage = float(workers_df.loc[workers_df["name"] == sel_worker, "daily_wage"].values[0])
             earned = base_wage if att_status == "Present (Full Day)" else (base_wage * 0.5 if att_status == "Half Day" else 0.0)
-            if st.form_submit_button("Record Attendance"):
+            if st.form_submit_button("💾 Save Attendance & Date"):
                 conn = sqlite3.connect("smart_farm.db")
                 conn.execute("INSERT INTO attendance (work_date, worker_name, status, task_assigned, wage_earned) VALUES (?, ?, ?, ?, ?)", (str(att_date), sel_worker, att_status, work_done, earned))
                 conn.commit()
                 conn.close()
-                st.success(f"Saved! Wage: ₹{earned:.0f}")
+                st.success(f"Saved for {att_date}! Wage: ₹{earned:.0f}")
+                st.rerun()
+
+    st.markdown("#### 📅 Saved Worker Attendance & Date Records")
+    if not att_history_df.empty:
+        st.dataframe(att_history_df, use_container_width=True, hide_index=True)
+    else:
+        st.info("No worker attendance dates recorded yet. Mark attendance above to see saved dates.")
 
 # === TAB 6: PROFIT, MANDI ROI & CSV REPORTS ===
 with tab6:
-    st.subheader("💰 Mandi Profit & CSV Reports")
+    st.subheader("💰 ಮಾರುಕಟ್ಟೆ ಲಾಭ ಮತ್ತು CSV ವರದಿಗಳು" if IS_KN else "💰 Mandi Profit & CSV Reports")
     with st.form("expense_form", clear_on_submit=True):
         exp_date = st.date_input("Date", date.today())
         exp_crop = st.selectbox("Crop", list(CROP_GUIDES.keys()), key="exp_crop")
@@ -557,3 +753,12 @@ with tab6:
     st.download_button("📥 Irrigation CSV", adv_df.to_csv(index=False).encode("utf-8"), "irrigation_logs.csv", "text/csv")
     st.download_button("📥 Worker Wages CSV", att_df.to_csv(index=False).encode("utf-8"), "worker_wages.csv", "text/csv")
     st.download_button("📥 Expenses CSV", exp_df.to_csv(index=False).encode("utf-8"), "farm_expenses.csv", "text/csv")
+
+# --- ADVISORY & WEATHER CREDIT FOOTER ---
+st.markdown(
+    '<div class="footer-note">'
+    'Live Weather Data by Open-Meteo.com (CC-BY 4.0) &bull; '
+    'Agronomic Advisory Disclaimer: Fertilizer and chemical doses are decision-support estimates; verify product labels and Pre-Harvest Intervals before spraying.'
+    '</div>',
+    unsafe_allow_html=True,
+)
